@@ -8,7 +8,8 @@
     "dev": "nodemon index.js"
   },
   "keywords": [],
-  "author": "",
+  "type": "module",
+  "author": "Xezo",
   "license": "ISC",
   "dependencies": {
     "express": "^4.18.2",
