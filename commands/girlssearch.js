@@ -12,38 +12,46 @@ async function girlssearch({ firstName, lastName }) {
             await page.goto(`https://www.ajga.org/player/${firstName}-${lastName}`, { waitUntil: "domcontentloaded" })
 
             let playerObj = {}
-            let [imgUrl, hometown, gradYear, college, name] = await page.evaluate(() => {
+            let imgUrl, hometown, gradYear, college, playerName
+            try {
+                [imgUrl, hometown, gradYear, college, playerName] = await page.evaluate(() => {
 
 
-                let userImage = document.getElementsByClassName("UserPublicProfilePage-userHeadingContent")[0].children[0].children[0].getAttribute("src")
-                let userInfo = document.getElementsByClassName("UserPublicProfilePage-userHeadingContent")[0].children[1].children
+                    let userImage = document.getElementsByClassName("UserPublicProfilePage-userHeadingContent")[0].children[0].children[0].getAttribute("src")
+                    let userInfo = document.getElementsByClassName("UserPublicProfilePage-userHeadingContent")[0].children[1].children
 
-                let userName = userInfo[0].innerText
-                let userHometwon = userInfo[1].innerText
-                let userGradYear = userInfo[2].innerText
-                userGradYear = userGradYear.substr(userGradYear.length - 4)
+                    let userName = userInfo[0].innerText
+                    let userHometwon = userInfo[1].innerText
+                    let userGradYear = userInfo[2].innerText
+                    userGradYear = userGradYear.substr(userGradYear.length - 4)
 
-                let userCollege = {}
+                    let userCollege = {}
 
-                try {
-                    if (userInfo[3].innerText) {
-                        if (userInfo[3].classList.contains("UserPublicProfilePage-playerLetterOfIntent")) {
-                            userCollege.type = "Letter of Intent"
+                    try {
+                        if (userInfo[3].innerText) {
+                            if (userInfo[3].classList.contains("UserPublicProfilePage-playerLetterOfIntent")) {
+                                userCollege.type = "Letter of Intent"
+                            }
+                            if (userInfo[3].classList.contains("UserPublicProfilePage-playerVerbalIntent")) {
+                                userCollege.type = "Verbal Intent"
+                            }
+                            let collegeName = userInfo[3].innerText
+                            userCollege.name = collegeName.substring(collegeName.indexOf(":") + 1)
                         }
-                        if (userInfo[3].classList.contains("UserPublicProfilePage-playerVerbalIntent")) {
-                            userCollege.type = "Verbal Intent"
-                        }
-                        let collegeName = userInfo[3].innerText
-                        userCollege.name = collegeName.substring(collegeName.indexOf(":") + 1)
+                    } catch (err) {
+                        userCollege.name = "unknown"
                     }
-                } catch (err) {
-                    userCollege.name = "unknown"
-                }
 
-                return [userImage, userHometwon, userGradYear, userCollege, userName]
-            })
+                    return [userImage, userHometwon, userGradYear, userCollege, userName]
+                })
+            } catch (err) {
+                console.log(err)
+                playerObj.error = "404"
+                playerObj.message = "Couldn't find a player with that name."
+                return playerObj
+            }
 
-            playerObj.name = name
+            playerObj.name = playerName
             playerObj.playerImage = imgUrl
             playerObj.hometown = hometown
             playerObj.graduation = gradYear
@@ -133,32 +141,42 @@ async function girlssearch({ firstName, lastName }) {
                 let resultsTable = document.getElementsByTagName("tbody")[0].children
 
                 let finalData = []
-                Array.from(resultsTable).forEach((item) => {
-                    let playerName = []
-                    let playerLink = item.children[2].children[0]
-                    let link = playerLink.getAttribute("href").split("/")[2]
+                try {
+                    Array.from(resultsTable).forEach((item) => {
+                        let playerName = []
+                        let playerLink = item.children[2].children[0]
+                        let link = playerLink.getAttribute("href").split("/")[2]
 
-                    let firstName = link.split("-")[0]
-                    let lastName = link.split("-")[1]
-                    if (link.split("-").length > 2) {
-                        lastName = ""
-                        link.split("-").forEach((word, index) => {
-                            if (index > 0) {
-                                if (index == link.split("-").length - 1) {
-                                    lastName += word
-                                } else {
-                                    lastName += (word + "-")
+                        let firstName = link.split("-")[0]
+                        let lastName = link.split("-")[1]
+                        if (link.split("-").length > 2) {
+                            lastName = ""
+                            link.split("-").forEach((word, index) => {
+                                if (index > 0) {
+                                    if (index == link.split("-").length - 1) {
+                                        lastName += word
+                                    } else {
+                                        lastName += (word + "-")
+                                    }
                                 }
-                            }
-                        })
-                    }
-                    playerName.push(firstName)
-                    playerName.push(lastName)
+                            })
+                        }
+                        playerName.push(firstName)
+                        playerName.push(lastName)
 
-                    finalData.push(playerName)
-                })
-                return finalData
+                        finalData.push(playerName)
+                    })
+                    return finalData
+                } catch (err) {
+                    return []
+                }
             })
+            if (playerNames.length < 1) {
+                return {
+                    error: "404",
+                    message: "No player with queried name"
+                }
+            }
             let returnData = []
             for (let i = 0; i < playerNames.length; i++) {
                 let firstname = playerNames[i][0]
